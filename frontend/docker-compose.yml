@@ -1,0 +1,65 @@
+version: "3.9"
+
+services:
+
+  # ── PostgreSQL database ────────────────────────────────────────────────────
+  db:
+    image: postgres:14-alpine
+    container_name: fm-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB:       flooring_junction
+      POSTGRES_USER:     postgres
+      POSTGRES_PASSWORD: admin123
+    volumes:
+      - fm_pgdata:/var/lib/postgresql/data   # data persists across restarts
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  # ── Node / Express backend ─────────────────────────────────────────────────
+  backend:
+    build:
+      context: ./Backened
+      dockerfile: Dockerfile
+    container_name: fm-backend
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DATABASE_URL:  postgresql://postgres:admin123@db:5432/flooring_junction
+      APP_PORT:      5001
+      NODE_ENV:      production
+      JWT_SECRET:    fm-super-secret-key-change-me
+      JWT_EXPIRES:   8h
+      SMTP_HOST:     smtp.gmail.com
+      SMTP_PORT:     587
+      SMTP_USER:     jagk09688@gmail.com
+      SMTP_PASS:     your-app-password
+      SMTP_FROM:     "Flooring Junction <jagk09688@gmail.com>"
+    ports:
+      - "5001:5001"
+
+  # ── Next.js frontend ───────────────────────────────────────────────────────
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        # At build time the browser calls the HOST machine's port 5001
+        # (because the browser is not inside Docker)
+        NEXT_PUBLIC_API_URL: http://localhost:5001/api
+    container_name: fm-frontend
+    restart: unless-stopped
+    depends_on:
+      - backend
+    environment:
+      NODE_ENV: production
+    ports:
+      - "3000:3000"
+
+volumes:
+  fm_pgdata:    # named volume — database survives container rebuilds
