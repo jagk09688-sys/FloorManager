@@ -10,3 +10,5 @@ build/
 .vscode/settings.json
 uploads/
 frontend/Backened/uploads/
+*.zip
+.gitmodules
