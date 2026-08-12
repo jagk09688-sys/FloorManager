@@ -57,7 +57,7 @@ export default function JobsListPage() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [showToast]);
 
   useEffect(() => { fetchJobs(); }, [fetchJobs]);
 
@@ -300,4 +300,3 @@ export default function JobsListPage() {
     </div>
   );
 }
-

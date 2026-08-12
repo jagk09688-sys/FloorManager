@@ -2,7 +2,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 
-const API = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:5000";
+const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api";
 
 const JOB_CATEGORIES = ["Supply & Install","Supply Only","Install Only","Repair","Measure Only"];
 const JOB_SOURCES    = ["Walk In","Phone","Website","Referral","Repeat Client","Other"];

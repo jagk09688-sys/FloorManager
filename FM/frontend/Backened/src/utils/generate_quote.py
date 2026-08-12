@@ -37,6 +37,7 @@ def hrule(c, y, x1=15, x2=None, color=LINE, lw=0.5):
 
 def draw_quote(c, job):
     line_items = job.get("line_items", [])
+    quote_options = job.get("quote_options", [])
     gst_rate   = float(job.get("gst_rate", 0.10))
 
     gross    = sum(float(li["qty"]) * float(li["unit_sell"]) for li in line_items if float(li.get("unit_sell", 0)) > 0)
@@ -103,6 +104,11 @@ def draw_quote(c, job):
 
     # ── LINE ITEMS TABLE ─────────────────────────────────────────────────
     if line_items:
+        c.setFont("Helvetica-Bold", 11)
+        c.setFillColor(DARK)
+        c.drawString(15 * mm, y, "Carpet options")
+        y -= 7 * mm
+
         # Table header
         c.setFillColor(LGREY)
         c.setStrokeColor(LINE)
@@ -113,34 +119,77 @@ def draw_quote(c, job):
         c.setFillColor(GREY)
         c.drawString(18 * mm,     y - 5 * mm, "Description")
         c.drawRightString(rx - 40 * mm, y - 5 * mm, "Qty")
-        c.drawRightString(rx - 20 * mm, y - 5 * mm, "Unit Sell")
+        c.drawRightString(rx - 20 * mm, y - 5 * mm, "Unit Price")
         c.drawRightString(rx,           y - 5 * mm, "Total")
         y -= 7 * mm
 
-        # Rows
-        for li in line_items:
-            qty       = float(li.get("qty", 0))
-            unit_sell = float(li.get("unit_sell", 0))
-            line_tot  = qty * unit_sell
+        if quote_options:
+            display_items = quote_options[:4]
+            while len(display_items) < 4:
+                display_items.append({
+                    "label":       f"Option {len(display_items) + 1}",
+                    "description": "Other option — price on request",
+                    "qty":         1,
+                    "unitSell":    0,
+                })
 
-            # Alternate row shading
-            c.setFillColor(colors.HexColor("#fafafa"))
-            c.setStrokeColor(LINE)
-            c.setLineWidth(0.3)
-            c.rect(15 * mm, y - 6 * mm, W - 30 * mm, 6 * mm, fill=1)
+            for li in display_items:
+                qty       = float(li.get("qty", 0))
+                unit_sell = float(li.get("unitSell", 0))
+                line_tot  = qty * unit_sell
 
-            c.setFont("Helvetica", 8.5)
-            c.setFillColor(DARK)
-            c.drawString(18 * mm,           y - 4.5 * mm, li.get("description", ""))
-            c.drawRightString(rx - 40 * mm, y - 4.5 * mm, f"{qty:g}")
-            c.drawRightString(rx - 20 * mm, y - 4.5 * mm, f"${unit_sell:,.2f}")
-            c.drawRightString(rx,           y - 4.5 * mm, f"${line_tot:,.2f}")
+                c.setFillColor(colors.HexColor("#fafafa"))
+                c.setStrokeColor(LINE)
+                c.setLineWidth(0.3)
+                c.rect(15 * mm, y - 6 * mm, W - 30 * mm, 6 * mm, fill=1)
+
+                c.setFont("Helvetica", 8.5)
+                c.setFillColor(DARK)
+                desc = f"{li.get('label', '')}: {li.get('description', '')}".strip()
+                c.drawString(18 * mm,           y - 4.5 * mm, desc)
+                c.drawRightString(rx - 40 * mm, y - 4.5 * mm, f"{qty:g}")
+                if unit_sell > 0:
+                    c.drawRightString(rx - 20 * mm, y - 4.5 * mm, f"${unit_sell:,.2f}")
+                    c.drawRightString(rx,           y - 4.5 * mm, f"${line_tot:,.2f}")
+                else:
+                    c.drawRightString(rx - 20 * mm, y - 4.5 * mm, "Price on request")
+                    c.drawRightString(rx,           y - 4.5 * mm, "-")
+                y -= 6 * mm
+
+            y -= 4 * mm
+            hrule(c, y)
             y -= 6 * mm
+        elif line_items:
+            display_items = line_items[:4]
+            while len(display_items) < 4:
+                display_items.append({"description": "Other option — price on request", "qty": 1, "unit_sell": 0, "is_header": False})
 
-        y -= 4 * mm
-        hrule(c, y)
-        y -= 6 * mm
-    else:
+            for li in display_items:
+                qty       = float(li.get("qty", 0))
+                unit_sell = float(li.get("unit_sell", 0))
+                line_tot  = qty * unit_sell
+
+                c.setFillColor(colors.HexColor("#fafafa"))
+                c.setStrokeColor(LINE)
+                c.setLineWidth(0.3)
+                c.rect(15 * mm, y - 6 * mm, W - 30 * mm, 6 * mm, fill=1)
+
+                c.setFont("Helvetica", 8.5)
+                c.setFillColor(DARK)
+                c.drawString(18 * mm,           y - 4.5 * mm, li.get("description", ""))
+                c.drawRightString(rx - 40 * mm, y - 4.5 * mm, f"{qty:g}")
+                if unit_sell > 0:
+                    c.drawRightString(rx - 20 * mm, y - 4.5 * mm, f"${unit_sell:,.2f}")
+                    c.drawRightString(rx,           y - 4.5 * mm, f"${line_tot:,.2f}")
+                else:
+                    c.drawRightString(rx - 20 * mm, y - 4.5 * mm, "Price on request")
+                    c.drawRightString(rx,           y - 4.5 * mm, "-")
+                y -= 6 * mm
+
+            y -= 4 * mm
+            hrule(c, y)
+            y -= 6 * mm
+        else:
         # No line items — show description box instead
         desc_lines = [
             ("TO SUPPLY AND INSTALL:", True),

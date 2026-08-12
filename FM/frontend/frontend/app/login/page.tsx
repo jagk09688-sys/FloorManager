@@ -2,7 +2,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 
-const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5001/api";
+const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -27,7 +27,6 @@ export default function LoginPage() {
         return;
       }
       localStorage.setItem("fm_token", data.token);
-      // Cookie for middleware (8h expiry matches JWT)
       document.cookie = `fm_token=${data.token}; path=/; max-age=${8 * 60 * 60}; SameSite=Lax`;
       router.push("/jobs");
     } catch (err: unknown) {
@@ -47,7 +46,6 @@ export default function LoginPage() {
         background: "#fff", border: "1.5px solid #e5e7eb", borderRadius: 16,
         padding: "40px 44px", width: 380, boxShadow: "0 8px 32px rgba(0,0,0,0.07)",
       }}>
-        {/* Logo */}
         <div style={{ textAlign: "center", marginBottom: 32 }}>
           <span style={{
             fontSize: 14, fontWeight: 700, color: "#1d4ed8",

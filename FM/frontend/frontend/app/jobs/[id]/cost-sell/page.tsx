@@ -96,6 +96,27 @@ export default function CostSellPage() {
     setDirty(true);
   };
 
+  const addCarpetOptions = () => {
+    setItems(p => {
+      const baseIndex = p.length;
+      const options = [1, 2, 3, 4].map((idx, i) => ({
+        tag: "",
+        description: `Carpet option ${idx}`,
+        qty: 1,
+        unitCost: 0,
+        costTax: 10,
+        type: "M",
+        unitSell: 0,
+        sellTax: 10,
+        actOn: false,
+        isHeader: false,
+        sortOrder: baseIndex + i,
+      }));
+      return [...p, ...options];
+    });
+    setDirty(true);
+  };
+
   const upd = (i: number, k: keyof LineItem, v: unknown) => {
     setItems(p => { const n=[...p]; n[i]={...n[i],[k]:v}; return n; });
     setDirty(true);
@@ -464,6 +485,7 @@ export default function CostSellPage() {
           <div className="add-btns">
             <button className="add-btn" onClick={()=>addItem(false)}>+ Add Line Item</button>
             <button className="add-btn sec" onClick={()=>addItem(true)}>+ Add Section Header</button>
+            <button className="add-btn sec" onClick={addCarpetOptions}>+ Add 4 Carpet Options</button>
             <button className="add-btn tpl" onClick={()=>setShowTemplate(true)}>🏠 Load Template</button>
           </div>
         </div>

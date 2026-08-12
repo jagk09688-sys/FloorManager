@@ -3,7 +3,7 @@ import { useEffect, useState } from "react";
 import { useParams, usePathname, useRouter } from "next/navigation";
 import { saveRecent } from "../../../components/GlobalSearch";
 
-const API = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:5000";
+const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api";
 
 const TABS = [
   { label: "Cost & Sell", path: "cost-sell"  },

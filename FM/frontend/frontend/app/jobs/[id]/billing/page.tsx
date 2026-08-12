@@ -2,7 +2,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { useRouter, useParams } from "next/navigation";
 
-const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5001/api";
+const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api";
 const fmt  = (n: number) => `$${(n ?? 0).toLocaleString("en-AU", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 const fmtD = (s: string) => { try { return new Date(s).toLocaleDateString("en-AU"); } catch { return s; } };
 const todayStr = () => new Date().toISOString().slice(0, 10);

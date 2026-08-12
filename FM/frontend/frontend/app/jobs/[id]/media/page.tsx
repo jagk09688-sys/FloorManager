@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
 
-const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5001/api";
+const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api";
 
 interface MediaFile {
   id: number; fileName: string; originalName: string;

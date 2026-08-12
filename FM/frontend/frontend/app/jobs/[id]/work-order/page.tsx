@@ -2,7 +2,7 @@
 import { useState, useEffect } from "react";
 import { useParams } from "next/navigation";
 
-const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5001/api";
+const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api";
 const fmtDate = (s?: string) => { try { return s ? new Date(s).toLocaleDateString("en-AU", { weekday: "long", day: "numeric", month: "long", year: "numeric" }) : ""; } catch { return s ?? ""; } };
 const today = () => new Date().toLocaleDateString("en-AU", { day: "numeric", month: "long", year: "numeric" });
 

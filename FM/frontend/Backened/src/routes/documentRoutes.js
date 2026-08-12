@@ -71,6 +71,31 @@ async function buildQuotePayload(jobId) {
 
   const count = await prisma.job.count({ where: { id: { lte: job.id } } });
 
+  let quoteData = {};
+  try {
+    quoteData = job.description ? JSON.parse(job.description) : {};
+  } catch (err) {
+    quoteData = {};
+  }
+
+  const quoteOptions = Array.isArray(quoteData.carpetOptions)
+    ? quoteData.carpetOptions.slice(0, 4).map((opt) => ({
+        label:       opt.label || "",
+        description: opt.description || "",
+        qty:         opt.qty ?? 1,
+        unitSell:    opt.unitSell ?? 0,
+      }))
+    : [];
+
+  while (quoteOptions.length < 4) {
+    quoteOptions.push({
+      label:       `Option ${quoteOptions.length + 1}`,
+      description: "",
+      qty:         1,
+      unitSell:    0,
+    });
+  }
+
   return {
     quote_number:    `Q-${String(job.id).padStart(5, '0')}`,
     quote_date:      new Date().toLocaleDateString('en-AU'),
@@ -85,6 +110,7 @@ async function buildQuotePayload(jobId) {
     rep_name:        '',
     rep_location:    'Hallam',
     gst_rate:        (job.gstRate || 10) / 100,
+    quote_options:   quoteOptions,
     line_items:      job.lineItems
       .filter(li => !li.isHeader)
       .map(li => ({

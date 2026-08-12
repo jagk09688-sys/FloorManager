@@ -1,7 +1,7 @@
 "use client";
 import React, { useState, useEffect, useCallback } from "react";
 
-const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5001/api";
+const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api";
 
 interface Loan {
   id: number;
@@ -30,18 +30,15 @@ export default function LoansPage() {
   const [loading,   setLoading]   = useState(true);
   const [toast,     setToast]     = useState<{ msg: string; ok: boolean } | null>(null);
 
-  // Filters
   const [status,    setStatus]    = useState("outstanding");
   const [fromDate,  setFromDate]  = useState("");
   const [toDate,    setToDate]    = useState("");
   const [shopFilter,setShopFilter]= useState("");
 
-  // Add / Edit modal
   const [modal,     setModal]     = useState(false);
   const [editLoan,  setEditLoan]  = useState<Loan | null>(null);
   const [form, setForm] = useState({ loanedDate: todayStr(), dueBack: "", loanedTo: "", description: "", notes: "", shop: "", createdBy: "" });
 
-  // Return modal
   const [returnModal,   setReturnModal]   = useState(false);
   const [returnLoan,    setReturnLoan]    = useState<Loan | null>(null);
   const [returnDate,    setReturnDate]    = useState(todayStr());
@@ -136,7 +133,6 @@ export default function LoansPage() {
     <div style={{ fontFamily: "'DM Sans',sans-serif", maxWidth: 1100, margin: "0 auto", padding: "24px" }}>
       {toast && <div style={{ position: "fixed", bottom: 20, right: 20, zIndex: 9999, padding: "10px 18px", borderRadius: 8, fontSize: 13, fontWeight: 600, color: "#fff", background: toast.ok ? "#16a34a" : "#dc2626", boxShadow: "0 4px 16px rgba(0,0,0,0.15)" }}>{toast.ok ? "✓" : "✕"} {toast.msg}</div>}
 
-      {/* Header */}
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 20 }}>
         <div>
           <div style={{ fontSize: 20, fontWeight: 700, color: "#111827" }}>Loan Registry</div>
@@ -151,7 +147,6 @@ export default function LoansPage() {
         </button>
       </div>
 
-      {/* Filters */}
       <div style={{ background: "#fff", border: "1.5px solid #e5e7eb", borderRadius: 10, padding: "14px 18px", marginBottom: 16, display: "flex", gap: 14, flexWrap: "wrap", alignItems: "flex-end" }}>
         <div>
           <label style={LBL}>Show</label>
@@ -179,13 +174,12 @@ export default function LoansPage() {
         </button>
       </div>
 
-      {/* Add / Edit Modal */}
       {modal && (
         <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.45)", zIndex: 500, display: "flex", alignItems: "center", justifyContent: "center" }} onClick={() => setModal(false)}>
           <div style={{ background: "#fff", borderRadius: 12, width: 600, maxWidth: "95vw", boxShadow: "0 20px 50px rgba(0,0,0,0.2)" }} onClick={e => e.stopPropagation()}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "16px 22px", borderBottom: "1px solid #f3f4f6" }}>
               <span style={{ fontSize: 15, fontWeight: 700, color: "#111827" }}>{editLoan ? "Edit Loan Entry" : "New Loan Entry"}</span>
-              <button onClick={() => setModal(false)} style={{ background: "none", border: "none", fontSize: 18, cursor: "pointer", color: "#9ca3af" }}>✕</button>
+              <button onClick={() => setModal(false)} style={{ background: "none", border: "none", fontSize: 18, cursor: "pointer", color: "#9ca3af" }}>&times;</button>
             </div>
             <div style={{ padding: "20px 22px", display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
               <div>
@@ -229,13 +223,12 @@ export default function LoansPage() {
         </div>
       )}
 
-      {/* Return Modal */}
       {returnModal && returnLoan && (
         <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.45)", zIndex: 500, display: "flex", alignItems: "center", justifyContent: "center" }} onClick={() => setReturnModal(false)}>
           <div style={{ background: "#fff", borderRadius: 12, width: 460, maxWidth: "95vw", boxShadow: "0 20px 50px rgba(0,0,0,0.2)" }} onClick={e => e.stopPropagation()}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "16px 22px", borderBottom: "1px solid #f3f4f6" }}>
               <span style={{ fontSize: 15, fontWeight: 700, color: "#111827" }}>Mark as Returned</span>
-              <button onClick={() => setReturnModal(false)} style={{ background: "none", border: "none", fontSize: 18, cursor: "pointer", color: "#9ca3af" }}>✕</button>
+              <button onClick={() => setReturnModal(false)} style={{ background: "none", border: "none", fontSize: 18, cursor: "pointer", color: "#9ca3af" }}>&times;</button>
             </div>
             <div style={{ padding: "20px 22px" }}>
               <div style={{ fontSize: 13, color: "#374151", marginBottom: 16, background: "#f9fafb", borderRadius: 8, padding: "10px 14px" }}>
@@ -263,12 +256,11 @@ export default function LoansPage() {
         </div>
       )}
 
-      {/* Loans table */}
       {loading ? (
-        <div style={{ padding: 48, textAlign: "center", color: "#9ca3af", fontSize: 13 }}>Loading…</div>
+        <div style={{ padding: 48, textAlign: "center", color: "#9ca3af", fontSize: 13 }}>Loading&hellip;</div>
       ) : loans.length === 0 ? (
         <div style={{ background: "#fff", border: "1.5px solid #e5e7eb", borderRadius: 12, padding: 48, textAlign: "center", color: "#9ca3af", fontSize: 13 }}>
-          {status === "outstanding" ? "No outstanding loans 🎉" : "No entries found"}
+          {status === "outstanding" ? "No outstanding loans" : "No entries found"}
         </div>
       ) : (
         <div style={{ background: "#fff", border: "1.5px solid #e5e7eb", borderRadius: 12, overflow: "hidden" }}>

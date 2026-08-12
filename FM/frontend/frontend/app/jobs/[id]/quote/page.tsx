@@ -24,6 +24,25 @@ Payment can be made with CASH, CHEQUE or CREDIT CARD. Alternatively, payment can
 ELECTRONIC TRANSFER [please put job name or number as reference].
 BSB 063 237, ACCOUNT NO, 1048 7235`;
 
+const DEFAULT_CARPET_OPTIONS = [
+  { label: "Option 1", description: "Premium carpet — high durability", qty: 1, unitSell: 0 },
+  { label: "Option 2", description: "Classic carpet — good value", qty: 1, unitSell: 0 },
+  { label: "Option 3", description: "Budget carpet — cost-effective", qty: 1, unitSell: 0 },
+  { label: "Option 4", description: "Luxury carpet — premium finish", qty: 1, unitSell: 0 },
+];
+
+function normalizeCarpetOptions(value: unknown) {
+  if (!Array.isArray(value)) return DEFAULT_CARPET_OPTIONS;
+  const options = value.slice(0, 4).map((opt: any, i) => ({
+    label: opt?.label || `Option ${i + 1}`,
+    description: String(opt?.description ?? DEFAULT_CARPET_OPTIONS[i].description),
+    qty: opt?.qty ?? 1,
+    unitSell: opt?.unitSell ?? 0,
+  }));
+  while (options.length < 4) options.push(DEFAULT_CARPET_OPTIONS[options.length]);
+  return options;
+}
+
 export default function QuotePage() {
   const router = useRouter();
   const params = useParams();
@@ -38,6 +57,7 @@ export default function QuotePage() {
     rooms: "",
     inclusions: "TAKE UP AND DISPOSAL OF EXISTING CARPET.\nBASIC FURNITURE HANDLING.\nPlease remove all personal items from movable wardrobes, dressers and the like. Ensure that computers and stereos are disconnected and removed.",
     exclusions: "Any unforeseen floor preparation will be quoted separately.",
+    carpetOptions: DEFAULT_CARPET_OPTIONS,
   });
   const [paymentTerms, setPaymentTerms] = useState(DEFAULT_TERMS);
   const [saving, setSaving] = useState(false);
@@ -51,6 +71,14 @@ export default function QuotePage() {
     setTimeout(() => setToast(null), 3000);
   }, []);
 
+  const setCarpetOption = (index: number, updates: Partial<{ description: string; qty: number|string; unitSell: number|string }>) => {
+    setQuoteFields(f => {
+      const next = [...f.carpetOptions];
+      next[index] = { ...next[index], ...updates };
+      return { ...f, carpetOptions: next };
+    });
+  };
+
   useEffect(() => {
     if (!jobId) return;
     Promise.all([fetch(`${API}/jobs/${jobId}`), fetch(`${API}/jobs/${jobId}/line-items`)])
@@ -62,7 +90,13 @@ export default function QuotePage() {
         setItems(ld);
         try {
           const saved = JSON.parse(jd.description ?? "{}");
-          if (typeof saved === "object" && saved !== null) setQuoteFields(f => ({ ...f, ...saved }));
+          if (typeof saved === "object" && saved !== null) {
+            setQuoteFields(f => ({
+              ...f,
+              ...saved,
+              carpetOptions: normalizeCarpetOptions(saved.carpetOptions),
+            }));
+          }
         } catch { /* plain text fallback — leave defaults */ }
         setLoading(false);
         setEmail({
@@ -75,6 +109,13 @@ export default function QuotePage() {
   }, [jobId]);
 
   const dataRows = items.filter(li => !li.isHeader);
+  // Ensure we always display 4 carpet options: use real items first, then placeholders
+  const quoteItems = (() => {
+    const arr = dataRows.slice(0, 4).map(li => ({ ...li }));
+    while (arr.length < 4) arr.push({ description: "Other option — price on request", qty: 1, unitSell: 0, isHeader: false });
+    return arr;
+  })();
+  const hasMoreItems = dataRows.length > quoteItems.length;
   const grossSell = dataRows.reduce((s, li) => s + nv(li.qty) * nv(li.unitSell), 0);
   const gstAmt = grossSell * (gstRate / 100);
   const total = grossSell + gstAmt;
@@ -98,6 +139,35 @@ export default function QuotePage() {
     if (!w) return;
     const esc = (s: string) => s.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/\n/g,"<br>");
     const siteAddrHtml = [job.siteStreet, job.siteTown && `${job.siteTown} ${job.siteState ?? ""}`.trim(), job.siteCountry].filter((s): s is string => !!s).map(esc).join("<br>");
+    const optionRowsHtml = quoteFields.carpetOptions.map(opt => {
+      const qty = nv(opt.qty);
+      const unitSell = nv(opt.unitSell);
+      return `
+        <tr>
+          <td>${esc(String(opt.label))}: ${esc(String(opt.description || "Carpet option"))}</td>
+          <td style="text-align:right">${esc(String(qty))}</td>
+          <td style="text-align:right">${unitSell > 0 ? `$${fmt(unitSell)}` : "Price on request"}</td>
+          <td style="text-align:right">${unitSell > 0 ? `$${fmt(qty * unitSell)}` : "—"}</td>
+        </tr>
+      `;
+    }).join("");
+    const itemSectionHtml = `
+      <div style="margin-bottom:20px;">
+        <div style="font-size:13px;font-weight:700;color:#1e3a8a;margin-bottom:6px;">Carpet options</div>
+        <table style="width:100%;border-collapse:collapse;font-size:12px;margin-bottom:8px;">
+          <thead>
+            <tr>
+              <th style="text-align:left;padding:10px 8px;border-bottom:2px solid #e5e7eb;color:#6b7280;">Description</th>
+              <th style="text-align:right;padding:10px 8px;border-bottom:2px solid #e5e7eb;color:#6b7280;">Qty</th>
+              <th style="text-align:right;padding:10px 8px;border-bottom:2px solid #e5e7eb;color:#6b7280;">Unit Price</th>
+              <th style="text-align:right;padding:10px 8px;border-bottom:2px solid #e5e7eb;color:#6b7280;">Total</th>
+            </tr>
+          </thead>
+          <tbody>${optionRowsHtml}</tbody>
+        </table>
+        <div style="font-size:11px;color:#6b7280;">These carpet options are shown for comparison. The totals below represent the final quote amount.</div>
+      </div>
+    `;
     w.document.write(`<!DOCTYPE html><html><head><title>Quote ${qNum}</title>
     <style>
       * { box-sizing: border-box; }
@@ -150,6 +220,7 @@ export default function QuotePage() {
       ${quoteFields.inclusions ? `<div class="scope-row"><div class="scope-key">This Quotation Includes</div><div class="scope-val">${esc(quoteFields.inclusions)}</div></div>` : ""}
       ${quoteFields.exclusions ? `<div class="scope-row"><div class="scope-key">Does Not Include</div><div class="scope-val">${esc(quoteFields.exclusions)}</div></div>` : ""}
     </div>
+    ${itemSectionHtml}
     <div class="cod">C.O.D.</div>
     <div class="terms">${esc(paymentTerms)}</div>
     <div class="totals"><table class="t"><tr><td class="tl">Net</td><td class="tv">$${fmt(grossSell)}</td></tr><tr><td class="tl">GST ${gstRate}%</td><td class="tv">$${fmt(gstAmt)}</td></tr><tr class="grand"><td class="tl grand">Total</td><td class="tv grand">$${fmt(total)}</td></tr></table></div>
@@ -318,6 +389,65 @@ export default function QuotePage() {
             </div>
           </div>
 
+          {/* ── Carpet options table ── */}
+          <div className="items-card">
+            <div className="items-heading">
+              <div className="items-title">Carpet options</div>
+              <div className="items-subtitle">Choose the best carpet price and quality for your project.</div>
+            </div>
+            <table className="items-table">
+              <thead>
+                <tr>
+                  <th>Option</th>
+                  <th>Description</th>
+                  <th>Qty</th>
+                  <th>Unit Price</th>
+                  <th>Total</th>
+                </tr>
+              </thead>
+              <tbody>
+                {quoteFields.carpetOptions.map((opt, idx) => {
+                  const qty = nv(opt.qty);
+                  const unitSell = nv(opt.unitSell);
+                  return (
+                    <tr key={idx}>
+                      <td>{opt.label}</td>
+                      <td>
+                        <input
+                          className="options-input"
+                          value={opt.description}
+                          onChange={e => setCarpetOption(idx, { description: e.target.value })}
+                          placeholder={`Carpet option ${idx + 1}`}
+                        />
+                      </td>
+                      <td>
+                        <input
+                          className="options-input mono"
+                          type="number"
+                          min="1"
+                          value={opt.qty}
+                          onChange={e => setCarpetOption(idx, { qty: Number(e.target.value) || 1 })}
+                        />
+                      </td>
+                      <td>
+                        <input
+                          className="options-input mono"
+                          type="number"
+                          min="0"
+                          step="0.01"
+                          value={opt.unitSell}
+                          onChange={e => setCarpetOption(idx, { unitSell: Number(e.target.value) || 0 })}
+                        />
+                      </td>
+                      <td>{unitSell > 0 ? `$${fmt(qty * unitSell)}` : "—"}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+            <div className="items-note">These carpet options are shown for comparison. The totals shown below reflect the selected quote amount.</div>
+          </div>
+
           {/* ── C.O.D. ── */}
           <div className="cod-box">C.O.D.</div>
 
@@ -435,6 +565,17 @@ export default function QuotePage() {
         /* Modal */
         .modal-bg { position:fixed;inset:0;background:rgba(0,0,0,0.4);z-index:500;display:flex;align-items:center;justify-content:center; }
         .modal { background:#fff;border-radius:12px;width:480px;max-width:95vw;box-shadow:0 20px 50px rgba(0,0,0,0.2);font-family:'DM Sans',sans-serif; }
+      .items-card { border:1px solid #e5e7eb;border-radius:12px;padding:18px 20px;margin-bottom:18px;background:#f9fafb; }
+      .items-heading { display:flex;justify-content:space-between;align-items:flex-start;gap:16px;margin-bottom:10px; }
+      .items-title { font-size:13px;font-weight:700;color:#1e3a8a; }
+      .items-subtitle { font-size:12px;color:#4b5563;max-width:65%; }
+      .items-table { width:100%;border-collapse:collapse;font-size:12.5px; }
+      .items-table th, .items-table td { padding:10px 12px;text-align:left;border-bottom:1px solid #e5e7eb; }
+      .items-table th { color:#6b7280;font-weight:700;text-transform:uppercase;letter-spacing:0.02em;font-size:11px; }
+      .items-table td { color:#111827; }
+      .items-table td:last-child, .items-table th:last-child { text-align:right; }
+      .items-empty { color:#6b7280;font-size:12.5px;line-height:1.7; }
+      .items-note { color:#475569;font-size:12px;margin-top:8px; }
         .modal-header { display:flex;justify-content:space-between;align-items:center;padding:18px 22px;border-bottom:1px solid #f3f4f6; }
         .modal-title { font-size:15px;font-weight:700;color:#111827; }
         .modal-close { background:none;border:none;font-size:18px;cursor:pointer;color:#9ca3af; }

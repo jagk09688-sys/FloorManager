@@ -4,7 +4,7 @@ import NavBar from "@/components/NavBar";
 
 export const metadata: Metadata = {
   title: "FloorManager",
-  description: "Floor management system — Flooring Junction",
+  description: 'Floor management system - Flooring Junction',
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

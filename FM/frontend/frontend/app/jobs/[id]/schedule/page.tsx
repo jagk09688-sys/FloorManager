@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { useParams } from "next/navigation";
 
-const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5001/api";
+const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api";
 const today = () => new Date().toISOString().split("T")[0];
 const fmtDate = (s: string) => { try { return new Date(s).toLocaleDateString("en-AU", { weekday: "short", day: "numeric", month: "short", year: "numeric" }); } catch { return s; } };
 const fmtTime = (t?: string) => { if (!t) return ""; try { const [h, m] = t.split(":"); const hr = parseInt(h); return `${hr % 12 || 12}:${m} ${hr < 12 ? "AM" : "PM"}`; } catch { return t; } };
