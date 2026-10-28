@@ -96,6 +96,12 @@ async function buildQuotePayload(jobId) {
     });
   }
 
+  const carpetName = quoteData.carpetName || quoteData.carpet_name || '';
+  const underlayName = quoteData.underlayName || quoteData.underlay_name || '';
+  const supplyInstall = quoteData.supplyInstall || quoteData.supply_install ||
+    [carpetName || 'Carpet', underlayName && `with ${underlayName}`].filter(Boolean).join(' ') ||
+    'Carpet and underlay';
+
   return {
     quote_number:    `Q-${String(job.id).padStart(5, '0')}`,
     quote_date:      new Date().toLocaleDateString('en-AU'),
@@ -107,6 +113,14 @@ async function buildQuotePayload(jobId) {
     site_suburb:     job.siteTown || '',
     site_state:      job.siteState || '',
     site_country:    job.siteCountry || 'Australia',
+    carpet_name:     carpetName,
+    underlay_name:   underlayName,
+    supply_install:  quoteData.supplyInstall || quoteData.supply_install || supplyInstall,
+    rooms:           quoteData.rooms || '',
+    inclusions:      quoteData.inclusions || 'TAKE UP AND DISPOSAL OF EXISTING CARPET.\nBASIC FURNITURE HANDLING.',
+    exclusions:      quoteData.exclusions || 'Any unforeseen floor preparation will be quoted separate to this quote.',
+    payment_terms:   quoteData.paymentTerms || quoteData.payment_terms ||
+      "Initial deposit 50%, Balance to be paid 3 working day's prior to installation.\nAll orders that are $1000 or under are to be paid in full upon acceptance of quotation.\nPayment can be made with CASH, CHEQUE or CREDIT CARD.\nAlternatively, payment can be made by ELECTRONIC TRANSFER [please put job name or number as reference].\nBSB 063 237, ACCOUNT NO, 1048 7235",
     rep_name:        '',
     rep_location:    'Hallam',
     gst_rate:        (job.gstRate || 10) / 100,

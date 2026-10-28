@@ -7,6 +7,7 @@ const fmt = (n: number) => (n ?? 0).toLocaleString("en-AU", { minimumFractionDig
 const nv = (v: number | string) => parseFloat(String(v) || "0") || 0;
 
 interface LineItem { description: string; qty: number|string; unitSell: number|string; sellTax: number|string; isHeader: boolean; }
+interface CarpetOption { label: string; description: string; qty: number|string; unitSell: number|string; }
 interface Job {
   id: number; title: string; gstRate?: number; description?: string;
   leadNumber?: string; jobCategory?: string; shop?: string; jobRef?: string;
@@ -16,6 +17,15 @@ interface Job {
   siteStreet?: string; siteTown?: string; siteState?: string; siteZip?: string; siteCountry?: string;
   billingStreet?: string; billingTown?: string; billingState?: string; billingZip?: string;
 }
+interface QuoteFields {
+  carpetName: string;
+  underlayName: string;
+  supplyInstall: string;
+  rooms: string;
+  inclusions: string;
+  exclusions: string;
+  carpetOptions: CarpetOption[];
+}
 
 const DEFAULT_TERMS = `PAYMENT TERMS: Initial deposit 30%. Balance to be paid 3 working day's prior to installation.
 All orders that are $1000 or under are to be paid in full upon acceptance of quotation.
@@ -24,14 +34,14 @@ Payment can be made with CASH, CHEQUE or CREDIT CARD. Alternatively, payment can
 ELECTRONIC TRANSFER [please put job name or number as reference].
 BSB 063 237, ACCOUNT NO, 1048 7235`;
 
-const DEFAULT_CARPET_OPTIONS = [
+const DEFAULT_CARPET_OPTIONS: CarpetOption[] = [
   { label: "Option 1", description: "Premium carpet — high durability", qty: 1, unitSell: 0 },
   { label: "Option 2", description: "Classic carpet — good value", qty: 1, unitSell: 0 },
   { label: "Option 3", description: "Budget carpet — cost-effective", qty: 1, unitSell: 0 },
   { label: "Option 4", description: "Luxury carpet — premium finish", qty: 1, unitSell: 0 },
 ];
 
-function normalizeCarpetOptions(value: unknown) {
+function normalizeCarpetOptions(value: unknown): CarpetOption[] {
   if (!Array.isArray(value)) return DEFAULT_CARPET_OPTIONS;
   const options = value.slice(0, 4).map((opt: any, i) => ({
     label: opt?.label || `Option ${i + 1}`,
@@ -52,7 +62,9 @@ export default function QuotePage() {
   const [items, setItems] = useState<LineItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [gstRate, setGstRate] = useState(10);
-  const [quoteFields, setQuoteFields] = useState({
+  const [quoteFields, setQuoteFields] = useState<QuoteFields>({
+    carpetName: "",
+    underlayName: "",
     supplyInstall: "",
     rooms: "",
     inclusions: "TAKE UP AND DISPOSAL OF EXISTING CARPET.\nBASIC FURNITURE HANDLING.\nPlease remove all personal items from movable wardrobes, dressers and the like. Ensure that computers and stereos are disconnected and removed.",
@@ -71,9 +83,9 @@ export default function QuotePage() {
     setTimeout(() => setToast(null), 3000);
   }, []);
 
-  const setCarpetOption = (index: number, updates: Partial<{ description: string; qty: number|string; unitSell: number|string }>) => {
+  const setCarpetOption = (index: number, updates: Partial<CarpetOption>) => {
     setQuoteFields(f => {
-      const next = [...f.carpetOptions];
+      const next: CarpetOption[] = [...f.carpetOptions];
       next[index] = { ...next[index], ...updates };
       return { ...f, carpetOptions: next };
     });
@@ -109,16 +121,10 @@ export default function QuotePage() {
   }, [jobId]);
 
   const dataRows = items.filter(li => !li.isHeader);
-  // Ensure we always display 4 carpet options: use real items first, then placeholders
-  const quoteItems = (() => {
-    const arr = dataRows.slice(0, 4).map(li => ({ ...li }));
-    while (arr.length < 4) arr.push({ description: "Other option — price on request", qty: 1, unitSell: 0, isHeader: false });
-    return arr;
-  })();
-  const hasMoreItems = dataRows.length > quoteItems.length;
   const grossSell = dataRows.reduce((s, li) => s + nv(li.qty) * nv(li.unitSell), 0);
   const gstAmt = grossSell * (gstRate / 100);
   const total = grossSell + gstAmt;
+  const supplyInstallValue = quoteFields.supplyInstall || [quoteFields.carpetName, quoteFields.underlayName].filter(Boolean).join(" with ") || "Carpet and underlay";
 
   const handleSaveText = async () => {
     if (!jobId) return;
@@ -139,33 +145,11 @@ export default function QuotePage() {
     if (!w) return;
     const esc = (s: string) => s.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/\n/g,"<br>");
     const siteAddrHtml = [job.siteStreet, job.siteTown && `${job.siteTown} ${job.siteState ?? ""}`.trim(), job.siteCountry].filter((s): s is string => !!s).map(esc).join("<br>");
-    const optionRowsHtml = quoteFields.carpetOptions.map(opt => {
-      const qty = nv(opt.qty);
-      const unitSell = nv(opt.unitSell);
-      return `
-        <tr>
-          <td>${esc(String(opt.label))}: ${esc(String(opt.description || "Carpet option"))}</td>
-          <td style="text-align:right">${esc(String(qty))}</td>
-          <td style="text-align:right">${unitSell > 0 ? `$${fmt(unitSell)}` : "Price on request"}</td>
-          <td style="text-align:right">${unitSell > 0 ? `$${fmt(qty * unitSell)}` : "—"}</td>
-        </tr>
-      `;
-    }).join("");
     const itemSectionHtml = `
       <div style="margin-bottom:20px;">
-        <div style="font-size:13px;font-weight:700;color:#1e3a8a;margin-bottom:6px;">Carpet options</div>
-        <table style="width:100%;border-collapse:collapse;font-size:12px;margin-bottom:8px;">
-          <thead>
-            <tr>
-              <th style="text-align:left;padding:10px 8px;border-bottom:2px solid #e5e7eb;color:#6b7280;">Description</th>
-              <th style="text-align:right;padding:10px 8px;border-bottom:2px solid #e5e7eb;color:#6b7280;">Qty</th>
-              <th style="text-align:right;padding:10px 8px;border-bottom:2px solid #e5e7eb;color:#6b7280;">Unit Price</th>
-              <th style="text-align:right;padding:10px 8px;border-bottom:2px solid #e5e7eb;color:#6b7280;">Total</th>
-            </tr>
-          </thead>
-          <tbody>${optionRowsHtml}</tbody>
-        </table>
-        <div style="font-size:11px;color:#6b7280;">These carpet options are shown for comparison. The totals below represent the final quote amount.</div>
+        <div style="font-size:13px;font-weight:700;color:#1e3a8a;margin-bottom:8px;">To Supply &amp; Install</div>
+        <div style="font-size:12px;color:#222;line-height:1.7;white-space:pre-wrap;">${esc(supplyInstallValue)}</div>
+        ${quoteFields.rooms ? `<div style="margin-top:10px;font-size:12px;color:#222;line-height:1.7;white-space:pre-wrap;">${esc("TO:\n" + quoteFields.rooms)}</div>` : ""}
       </div>
     `;
     w.document.write(`<!DOCTYPE html><html><head><title>Quote ${qNum}</title>
@@ -215,7 +199,7 @@ export default function QuotePage() {
       ${siteAddrHtml ? `<div class="party" style="text-align:right"><div class="party-lbl">Installation Site</div><div class="party-line">${siteAddrHtml}</div></div>` : ""}
     </div>
     <div class="scope">
-      ${quoteFields.supplyInstall ? `<div class="scope-row"><div class="scope-key">To Supply &amp; Install</div><div class="scope-val">${esc(quoteFields.supplyInstall)}</div></div>` : ""}
+      ${supplyInstallValue ? `<div class="scope-row"><div class="scope-key">To Supply &amp; Install</div><div class="scope-val">${esc(supplyInstallValue)}</div></div>` : ""}
       ${quoteFields.rooms ? `<div class="scope-row"><div class="scope-key">To</div><div class="scope-val">${esc(quoteFields.rooms)}</div></div>` : ""}
       ${quoteFields.inclusions ? `<div class="scope-row"><div class="scope-key">This Quotation Includes</div><div class="scope-val">${esc(quoteFields.inclusions)}</div></div>` : ""}
       ${quoteFields.exclusions ? `<div class="scope-row"><div class="scope-key">Does Not Include</div><div class="scope-val">${esc(quoteFields.exclusions)}</div></div>` : ""}
@@ -223,7 +207,7 @@ export default function QuotePage() {
     ${itemSectionHtml}
     <div class="cod">C.O.D.</div>
     <div class="terms">${esc(paymentTerms)}</div>
-    <div class="totals"><table class="t"><tr><td class="tl">Net</td><td class="tv">$${fmt(grossSell)}</td></tr><tr><td class="tl">GST ${gstRate}%</td><td class="tv">$${fmt(gstAmt)}</td></tr><tr class="grand"><td class="tl grand">Total</td><td class="tv grand">$${fmt(total)}</td></tr></table></div>
+    <div class="totals"><table class="t"><tr class="grand"><td class="tl grand" colspan="2" style="text-align:center;">TOTAL $${fmt(total)}</td></tr></table></div>
     <div class="footer"><div><div class="sig-name">Kamal Hira</div><div>Carpet World Hallam</div></div><div style="text-align:right"><div class="sig-box">Customer Signature</div><div>Date: ___________________</div></div></div>
     </body></html>`);
     w.document.close();
@@ -352,12 +336,30 @@ export default function QuotePage() {
           {/* ── Scope fields (structured, editable) ── */}
           <div className="scope-box">
             <div className="scope-row">
+              <div className="scope-field-label">CARPET NAME :</div>
+              <input
+                className="scope-inp"
+                value={quoteFields.carpetName}
+                onChange={e => setQuoteFields(f => ({ ...f, carpetName: e.target.value }))}
+                placeholder="e.g. Pure Wool Twist"
+              />
+            </div>
+            <div className="scope-row">
+              <div className="scope-field-label">UNDERLAY :</div>
+              <input
+                className="scope-inp"
+                value={quoteFields.underlayName}
+                onChange={e => setQuoteFields(f => ({ ...f, underlayName: e.target.value }))}
+                placeholder="e.g. 10mm Dunlop Foam"
+              />
+            </div>
+            <div className="scope-row">
               <div className="scope-field-label">TO SUPPLY AND INSTALL :</div>
               <input
                 className="scope-inp"
-                value={quoteFields.supplyInstall}
+                value={quoteFields.supplyInstall || supplyInstallValue}
                 onChange={e => setQuoteFields(f => ({ ...f, supplyInstall: e.target.value }))}
-                placeholder="e.g. light breeze carpet with 10mm dunlop foam underlay"
+                placeholder="e.g. carpet and underlay installation"
               />
             </div>
             <div className="scope-row">
@@ -389,63 +391,18 @@ export default function QuotePage() {
             </div>
           </div>
 
-          {/* ── Carpet options table ── */}
-          <div className="items-card">
-            <div className="items-heading">
-              <div className="items-title">Carpet options</div>
-              <div className="items-subtitle">Choose the best carpet price and quality for your project.</div>
+          {/* ── Quote scope only ── */}
+          <div className="quote-scope-box">
+            <div className="quote-scope-row">
+              <span className="quote-scope-label">TO SUPPLY AND INSTALL :</span>
+              <span className="quote-scope-value">{supplyInstallValue}</span>
             </div>
-            <table className="items-table">
-              <thead>
-                <tr>
-                  <th>Option</th>
-                  <th>Description</th>
-                  <th>Qty</th>
-                  <th>Unit Price</th>
-                  <th>Total</th>
-                </tr>
-              </thead>
-              <tbody>
-                {quoteFields.carpetOptions.map((opt, idx) => {
-                  const qty = nv(opt.qty);
-                  const unitSell = nv(opt.unitSell);
-                  return (
-                    <tr key={idx}>
-                      <td>{opt.label}</td>
-                      <td>
-                        <input
-                          className="options-input"
-                          value={opt.description}
-                          onChange={e => setCarpetOption(idx, { description: e.target.value })}
-                          placeholder={`Carpet option ${idx + 1}`}
-                        />
-                      </td>
-                      <td>
-                        <input
-                          className="options-input mono"
-                          type="number"
-                          min="1"
-                          value={opt.qty}
-                          onChange={e => setCarpetOption(idx, { qty: Number(e.target.value) || 1 })}
-                        />
-                      </td>
-                      <td>
-                        <input
-                          className="options-input mono"
-                          type="number"
-                          min="0"
-                          step="0.01"
-                          value={opt.unitSell}
-                          onChange={e => setCarpetOption(idx, { unitSell: Number(e.target.value) || 0 })}
-                        />
-                      </td>
-                      <td>{unitSell > 0 ? `$${fmt(qty * unitSell)}` : "—"}</td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-            <div className="items-note">These carpet options are shown for comparison. The totals shown below reflect the selected quote amount.</div>
+            {quoteFields.rooms && (
+              <div className="quote-scope-row">
+                <span className="quote-scope-label">TO :</span>
+                <span className="quote-scope-value">{quoteFields.rooms}</span>
+              </div>
+            )}
           </div>
 
           {/* ── C.O.D. ── */}
@@ -459,21 +416,12 @@ export default function QuotePage() {
             rows={6}
           />
 
-          {/* ── Totals ── */}
+          {/* ── Final total only ── */}
           <div className="totals-wrap">
             <table className="totals-table">
               <tbody>
-                <tr>
-                  <td className="tot-label">Net</td>
-                  <td className="tot-val">${fmt(grossSell)}</td>
-                </tr>
-                <tr>
-                  <td className="tot-label">GST &nbsp;{gstRate}%</td>
-                  <td className="tot-val">${fmt(gstAmt)}</td>
-                </tr>
                 <tr className="grand-row">
-                  <td className="tot-label grand">Total</td>
-                  <td className="tot-val grand">${fmt(total)}</td>
+                  <td className="tot-label grand" colSpan={2} style={{ textAlign: "center" }}>TOTAL ${fmt(total)}</td>
                 </tr>
               </tbody>
             </table>
@@ -539,6 +487,13 @@ export default function QuotePage() {
         .scope-inp:focus { background:#fafbff; }
         .scope-inp::placeholder { color:#d1d5db; }
         .scope-ta { resize:vertical; }
+
+        /* Quote scope */
+        .quote-scope-box { border:1px solid #e5e7eb;border-radius:8px;overflow:hidden;margin-bottom:14px; }
+        .quote-scope-row { display:flex;align-items:flex-start;border-bottom:1px solid #f3f4f6; }
+        .quote-scope-row:last-child { border-bottom:none; }
+        .quote-scope-label { width:210px;flex-shrink:0;padding:10px 12px;background:#f9fafb;border-right:1px solid #f3f4f6;font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:0.4px;color:#6b7280; }
+        .quote-scope-value { flex:1;padding:10px 12px;font-size:12.5px;color:#374151;line-height:1.7; }
 
         /* C.O.D. */
         .cod-box { border:1px solid #e5e7eb;border-radius:6px;padding:10px 14px;font-size:14px;font-weight:700;color:#111827;margin-bottom:10px; }

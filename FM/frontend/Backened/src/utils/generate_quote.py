@@ -10,6 +10,7 @@ Install:  pip install reportlab
 
 import sys
 import json
+import textwrap
 from reportlab.lib.pagesizes import A4
 from reportlab.lib import colors
 from reportlab.lib.units import mm
@@ -38,272 +39,155 @@ def hrule(c, y, x1=15, x2=None, color=LINE, lw=0.5):
 def draw_quote(c, job):
     line_items = job.get("line_items", [])
     quote_options = job.get("quote_options", [])
-    gst_rate   = float(job.get("gst_rate", 0.10))
+    gst_rate = float(job.get("gst_rate", 0.10))
 
-    gross    = sum(float(li["qty"]) * float(li["unit_sell"]) for li in line_items if float(li.get("unit_sell", 0)) > 0)
-    gst_amt  = gross * gst_rate
-    total    = gross + gst_amt
+    if line_items:
+        gross = sum(
+            float(li.get("qty", 0)) * float(li.get("unit_sell", 0))
+            for li in line_items
+            if float(li.get("unit_sell", 0)) > 0
+        )
+    elif quote_options:
+        gross = sum(
+            float(li.get("qty", 0)) * float(li.get("unitSell", 0))
+            for li in quote_options
+            if float(li.get("unitSell", 0)) > 0
+        )
+    else:
+        gross = 0.0
 
-    rx = W - 15 * mm
-    y  = H - 14 * mm
+    gst_amt = gross * gst_rate
+    total = gross + gst_amt
 
-    # ── HEADER — company info (right) ────────────────────────────────────
-    c.setFont("Helvetica-Bold", 10)
+    left = 15 * mm
+    right = W - 15 * mm
+    y = H - 16 * mm
+
     c.setFillColor(DARK)
-    c.drawRightString(rx, y, "Flooring Junction Pty Ltd")
+    c.setFont("Helvetica-Bold", 20)
+    c.drawString(left, y, "Quote")
+    c.setFont("Helvetica-Bold", 9.5)
+    c.drawRightString(right, y, str(job.get("quote_number", "")))
+
+    c.setFont("Helvetica", 8)
+    c.setFillColor(GREY)
+    c.drawRightString(right, y - 5 * mm, f"Date: {job.get('quote_date', '')}")
+
+    y -= 15 * mm
+    c.setFont("Helvetica-Bold", 9.5)
+    c.setFillColor(DARK)
+    c.drawString(left, y, (job.get("customer_name", "") or "Customer").upper())
     c.setFont("Helvetica", 8.5)
     c.setFillColor(GREY)
-    for line in [
-        "3/2-10 Hallam South Road, HALLAM VIC 3803",
-        "P 03 9796 3255",
-        "info@flooringjunction.com.au",
-        "ABN 90 661 948 456",
-    ]:
-        y -= 5 * mm
-        c.drawRightString(rx, y, line)
-
-    y -= 8 * mm
-    hrule(c, y, color=ORANGE, lw=2)
-    y -= 9 * mm
-
-    # ── QUOTE TITLE + NUMBER ─────────────────────────────────────────────
-    c.setFont("Helvetica-Bold", 22)
-    c.setFillColor(DARK)
-    c.drawString(15 * mm, y, "Quote")
-    c.setFillColor(ORANGE)
-    c.drawRightString(rx, y, str(job.get("quote_number", "")))
+    c.drawRightString(right, y, (job.get("site_address", "") or "Site address"))
 
     y -= 5 * mm
-    c.setFont("Helvetica", 8)
+    c.setFont("Helvetica", 8.5)
     c.setFillColor(GREY)
-    c.drawRightString(rx, y, f"Date: {job.get('quote_date', '')}")
+    c.drawString(left, y, job.get("customer_email", ""))
+    c.drawRightString(right, y, f"{job.get('site_suburb', '')}  {job.get('site_state', '')}  {job.get('site_country', '')}".strip())
 
-    y -= 5 * mm
-    hrule(c, y)
-    y -= 8 * mm
+    y -= 12 * mm
+    hrule(c, y, color=LINE, lw=0.6)
+    y -= 10 * mm
 
-    # ── CLIENT + SITE ────────────────────────────────────────────────────
-    c.setFont("Helvetica-Bold", 9.5)
-    c.setFillColor(DARK)
-    c.drawString(15 * mm, y, job.get("customer_name", ""))
+    supply_install = (
+        job.get("supply_install") or
+        job.get("supplyInstall") or
+        " ".join(part for part in [
+            job.get("carpet_name") or job.get("carpetName") or "Carpet",
+            job.get("underlay_name") or job.get("underlayName") or job.get("underlay") and f"with {job.get('underlay') or job.get('underlayName')}",
+        ] if part)
+        or "Carpet and underlay"
+    )
+    rooms = job.get("rooms") or job.get("site_address") or "<Rooms>"
 
-    c.setFont("Helvetica", 9)
-    c.setFillColor(GREY)
-    c.drawString(15 * mm, y - 5 * mm,  f"{job.get('customer_state','')}   {job.get('customer_country','')}")
-    c.drawString(15 * mm, y - 10 * mm, job.get("customer_email", ""))
+    desc_lines = [
+        "TO SUPPLY AND INSTALL:",
+        supply_install,
+        "",
+        "TO:",
+        rooms,
+        "",
+        "THIS QUOTATION INCLUDES:",
+        "TAKE UP AND DISPOSAL OF EXISTING CARPET.",
+        "BASIC FURNITURE HANDLING.",
+        "",
+        "THIS QUOTATION DOES NOT INCLUDE:",
+        "FURNITURE HANDLING (IF NOT COMPLETED BY CLIENT PRIOR TO INSTALLATION THIS WILL INCUR FURTHER CHARGES)",
+        "ANY UNFORESEEN FLOOR PREPARATION WILL BE QUOTED SEPARATE TO THIS QUOTE.",
+    ]
 
-    c.setFont("Helvetica", 9)
-    c.setFillColor(DARK)
-    c.drawRightString(rx, y,           job.get("site_address", ""))
-    c.drawRightString(rx, y - 5 * mm,  f"{job.get('site_suburb','')}  {job.get('site_state','')}")
-    c.drawRightString(rx, y - 10 * mm, job.get("site_country", ""))
-
-    y -= 17 * mm
-    hrule(c, y)
-    y -= 8 * mm
-
-    # ── LINE ITEMS TABLE ─────────────────────────────────────────────────
-    if line_items:
-        c.setFont("Helvetica-Bold", 11)
-        c.setFillColor(DARK)
-        c.drawString(15 * mm, y, "Carpet options")
-        y -= 7 * mm
-
-        # Table header
-        c.setFillColor(LGREY)
-        c.setStrokeColor(LINE)
-        c.setLineWidth(0.4)
-        c.rect(15 * mm, y - 7 * mm, W - 30 * mm, 7 * mm, fill=1)
-
-        c.setFont("Helvetica-Bold", 8)
-        c.setFillColor(GREY)
-        c.drawString(18 * mm,     y - 5 * mm, "Description")
-        c.drawRightString(rx - 40 * mm, y - 5 * mm, "Qty")
-        c.drawRightString(rx - 20 * mm, y - 5 * mm, "Unit Price")
-        c.drawRightString(rx,           y - 5 * mm, "Total")
-        y -= 7 * mm
-
-        if quote_options:
-            display_items = quote_options[:4]
-            while len(display_items) < 4:
-                display_items.append({
-                    "label":       f"Option {len(display_items) + 1}",
-                    "description": "Other option — price on request",
-                    "qty":         1,
-                    "unitSell":    0,
-                })
-
-            for li in display_items:
-                qty       = float(li.get("qty", 0))
-                unit_sell = float(li.get("unitSell", 0))
-                line_tot  = qty * unit_sell
-
-                c.setFillColor(colors.HexColor("#fafafa"))
-                c.setStrokeColor(LINE)
-                c.setLineWidth(0.3)
-                c.rect(15 * mm, y - 6 * mm, W - 30 * mm, 6 * mm, fill=1)
-
-                c.setFont("Helvetica", 8.5)
-                c.setFillColor(DARK)
-                desc = f"{li.get('label', '')}: {li.get('description', '')}".strip()
-                c.drawString(18 * mm,           y - 4.5 * mm, desc)
-                c.drawRightString(rx - 40 * mm, y - 4.5 * mm, f"{qty:g}")
-                if unit_sell > 0:
-                    c.drawRightString(rx - 20 * mm, y - 4.5 * mm, f"${unit_sell:,.2f}")
-                    c.drawRightString(rx,           y - 4.5 * mm, f"${line_tot:,.2f}")
-                else:
-                    c.drawRightString(rx - 20 * mm, y - 4.5 * mm, "Price on request")
-                    c.drawRightString(rx,           y - 4.5 * mm, "-")
-                y -= 6 * mm
-
-            y -= 4 * mm
-            hrule(c, y)
-            y -= 6 * mm
-        elif line_items:
-            display_items = line_items[:4]
-            while len(display_items) < 4:
-                display_items.append({"description": "Other option — price on request", "qty": 1, "unit_sell": 0, "is_header": False})
-
-            for li in display_items:
-                qty       = float(li.get("qty", 0))
-                unit_sell = float(li.get("unit_sell", 0))
-                line_tot  = qty * unit_sell
-
-                c.setFillColor(colors.HexColor("#fafafa"))
-                c.setStrokeColor(LINE)
-                c.setLineWidth(0.3)
-                c.rect(15 * mm, y - 6 * mm, W - 30 * mm, 6 * mm, fill=1)
-
-                c.setFont("Helvetica", 8.5)
-                c.setFillColor(DARK)
-                c.drawString(18 * mm,           y - 4.5 * mm, li.get("description", ""))
-                c.drawRightString(rx - 40 * mm, y - 4.5 * mm, f"{qty:g}")
-                if unit_sell > 0:
-                    c.drawRightString(rx - 20 * mm, y - 4.5 * mm, f"${unit_sell:,.2f}")
-                    c.drawRightString(rx,           y - 4.5 * mm, f"${line_tot:,.2f}")
-                else:
-                    c.drawRightString(rx - 20 * mm, y - 4.5 * mm, "Price on request")
-                    c.drawRightString(rx,           y - 4.5 * mm, "-")
-                y -= 6 * mm
-
-            y -= 4 * mm
-            hrule(c, y)
-            y -= 6 * mm
-        else:
-        # No line items — show description box instead
-        desc_lines = [
-            ("TO SUPPLY AND INSTALL:", True),
-            ("<Timber> USING <Underlay> underlay.", False),
-            ("", False),
-            ("TO:", True),
-            ("<Rooms>", False),
-            ("", False),
-            ("THIS QUOTATION INCLUDES:", True),
-            ("TAKE UP AND DISPOSAL OF EXISTING CARPET.", False),
-            ("BASIC FURNITURE HANDLING.", False),
-        ]
-        box_h = len(desc_lines) * 5 * mm + 10 * mm
-        c.setFillColor(colors.white)
-        c.setStrokeColor(LINE)
-        c.setLineWidth(0.5)
-        c.rect(15 * mm, y - box_h, W - 30 * mm, box_h, fill=1)
-        ty = y - 6 * mm
-        for text, bold in desc_lines:
-            if not text:
-                ty -= 2 * mm
-                continue
-            c.setFont("Helvetica-Bold" if bold else "Helvetica", 8.5)
-            c.setFillColor(DARK)
-            c.drawString(19 * mm, ty, text)
-            ty -= 5 * mm
-        y = y - box_h - 5 * mm
-
-    # ── PAYMENT TERMS ─────────────────────────────────────────────────────
-    pt_h = 46 * mm
-    c.setFillColor(LGREY)
-    c.setStrokeColor(LINE)
-    c.setLineWidth(0.5)
-    c.rect(15 * mm, y - pt_h, W - 30 * mm, pt_h, fill=1)
-
-    py = y - 6 * mm
-    c.setFont("Helvetica-Bold", 10)
-    c.setFillColor(ORANGE)
-    c.drawString(19 * mm, py, "C.O.D.")
-
-    py -= 7 * mm
-    c.setFont("Helvetica-Bold", 8)
-    c.setFillColor(DARK)
-    c.drawString(19 * mm, py, "PAYMENT TERMS")
-
-    c.setFont("Helvetica", 8)
-    c.setFillColor(GREY)
-    for tline in [
-        "Initial deposit 50%, Balance to be paid 3 working day's prior to installation.",
-        "All orders $1000 or under are to be paid in full upon acceptance of quotation.",
-        "Payment can be made by CASH, CHEQUE or CREDIT CARD.",
-        "Alternatively, payment can be made by ELECTRONIC TRANSFER",
-        "[please put job name or number as reference].",
-    ]:
-        py -= 4.5 * mm
-        c.drawString(19 * mm, py, tline)
-
-    py -= 7 * mm
-    c.setFont("Helvetica-Bold", 9.5)
-    c.setFillColor(DARK)
-    c.drawString(19 * mm, py, "BSB 063 237,  ACCOUNT NO. 1048 7235")
-    py -= 5.5 * mm
-    c.drawString(19 * mm, py, "Account name: Flooring Junction Pty. Ltd.")
-
-    y -= pt_h + 6 * mm
-
-    # ── TOTALS TABLE ─────────────────────────────────────────────────────
-    tot_h = 24 * mm
-    divX  = W - 65 * mm
-
+    box_h = 78 * mm
     c.setFillColor(colors.white)
     c.setStrokeColor(LINE)
     c.setLineWidth(0.5)
-    c.rect(15 * mm, y - tot_h, W - 30 * mm, tot_h, fill=1)
-    c.line(divX, y, divX, y - tot_h)
+    c.rect(left, y - box_h, W - 30 * mm, box_h, fill=1)
 
-    row_y = y - 6 * mm
-    for lbl, val, big in [
-        (f"Net", f"${gross:,.2f}", False),
-        (f"GST  {int(gst_rate*100)}%", f"${gst_amt:,.2f}", False),
-        ("Total", f"${total:,.2f}", True),
-    ]:
-        c.setFont("Helvetica", 9)
-        c.setFillColor(GREY)
-        c.drawRightString(divX - 4 * mm, row_y, lbl)
-        c.setFont("Helvetica-Bold", 11 if big else 9)
-        c.setFillColor(ORANGE if big else DARK)
-        c.drawRightString(rx, row_y, val)
-        row_y -= 6 * mm
-
-    y -= tot_h + 6 * mm
-
-    # ── SIGNATURE ────────────────────────────────────────────────────────
-    hrule(c, y)
-    y -= 6 * mm
-    c.setFont("Helvetica", 8.5)
+    text_y = y - 6 * mm
+    c.setFont("Helvetica-Bold", 8.5)
     c.setFillColor(DARK)
-    c.drawString(15 * mm, y, job.get("rep_name", ""))
-    y -= 4.5 * mm
+    for raw_line in desc_lines:
+        if not raw_line:
+            text_y -= 3 * mm
+            continue
+        for wrapped in textwrap.wrap(raw_line, width=100):
+            c.drawString(left + 4 * mm, text_y, wrapped)
+            text_y -= 4.5 * mm
+    y -= box_h + 8 * mm
+
+    terms_box_x = left
+    terms_box_w = W - 30 * mm
+    terms_box_h = 38 * mm
+    c.setFillColor(LGREY)
+    c.setStrokeColor(LINE)
+    c.setLineWidth(0.5)
+    c.rect(terms_box_x, y - terms_box_h, terms_box_w, terms_box_h, fill=1)
+
+    terms_y = y - 6 * mm
+    c.setFont("Helvetica-Bold", 10)
+    c.setFillColor(ORANGE)
+    c.drawString(left + 4 * mm, terms_y, "PAYMENT TERMS")
+    terms_y -= 6 * mm
+
+    c.setFont("Helvetica", 8)
+    c.setFillColor(DARK)
+    payment_lines = [
+        job.get("payment_terms") or
+        "Initial deposit 50%, Balance to be paid 3 working day's prior to installation.\nAll orders $1000 or under are to be paid in full upon acceptance of quotation.\nPayment can be made by CASH, CHEQUE or CREDIT CARD.\nAlternatively, payment can be made by ELECTRONIC TRANSFER [please put job name or number as reference].\nBSB 063 237, ACCOUNT NO, 1048 7235",
+    ]
+    for line in payment_lines:
+        for wrapped in textwrap.wrap(line.replace('\n', ' '), width=115):
+            c.drawString(left + 4 * mm, terms_y, wrapped)
+            terms_y -= 4.5 * mm
+
+    totals_x = W - 58 * mm
+    totals_w = 43 * mm
+    totals_h = 18 * mm
+    c.setFillColor(colors.white)
+    c.setStrokeColor(LINE)
+    c.setLineWidth(0.5)
+    c.rect(totals_x, y - totals_h, totals_w, totals_h, fill=1)
+
+    c.setFont("Helvetica-Bold", 11)
+    c.setFillColor(ORANGE)
+    c.drawRightString(right - 5 * mm, y - 12 * mm, f"TOTAL ${total:,.2f}")
+
+    y -= terms_box_h + 12 * mm
+
     c.setFont("Helvetica", 8)
     c.setFillColor(GREY)
-    c.drawString(15 * mm, y, job.get("rep_location", ""))
-
-    # ── FOOTER — logo centred at bottom ──────────────────────────────────
-    logo_h = 18 * mm
-    logo_w = 32 * mm
-    hrule(c, 8 * mm + logo_h + 5 * mm, color=ORANGE, lw=1.5)
+    c.drawString(left, y, job.get("rep_name", ""))
+    y -= 5 * mm
+    c.setFont("Helvetica", 7.5)
+    c.drawString(left, y, job.get("rep_location", "") or "Flooring Junction")
 
     if os.path.exists(LOGO):
+        logo_w = 28 * mm
+        logo_h = 16 * mm
         logo_x = (W - logo_w) / 2
-        c.drawImage(LOGO, logo_x, 8 * mm, width=logo_w, height=logo_h,
-                    preserveAspectRatio=True, mask='auto')
+        c.drawImage(LOGO, logo_x, 9 * mm, width=logo_w, height=logo_h, preserveAspectRatio=True, mask='auto')
     else:
-        # Fallback text if logo file not found
         c.setFont("Helvetica-Bold", 10)
         c.setFillColor(ORANGE)
         c.drawCentredString(W / 2, 12 * mm, "Flooring Junction")
