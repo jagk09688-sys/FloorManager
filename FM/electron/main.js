@@ -1,9 +1,23 @@
 const { app, BrowserWindow } = require('electron');
 const { spawn } = require('child_process');
 const path = require('path');
+const { pathToFileURL } = require('url');
 
 let backendProcess;
 let frontendProcess;
+
+function resolveDatabaseUrl(isPackaged) {
+  if (process.env.DATABASE_URL) {
+    return process.env.DATABASE_URL;
+  }
+
+  const dataDir = isPackaged
+    ? path.join(process.env.APPDATA || path.join(process.env.USERPROFILE || __dirname, 'AppData', 'Roaming'), 'Flooring Junction', 'data')
+    : path.join(__dirname, '..', 'frontend', 'Backened', 'data');
+
+  const dbPath = path.join(dataDir, 'flooring_junction.db');
+  return pathToFileURL(dbPath).href;
+}
 
 function startProcess(command, args, cwd, label) {
   const proc = spawn(command, args, {
@@ -11,6 +25,8 @@ function startProcess(command, args, cwd, label) {
     env: {
       ...process.env,
       PORT: label === 'backend' ? '5000' : '3000',
+      APP_PORT: '5000',
+      DATABASE_URL: resolveDatabaseUrl(!!app.isPackaged),
       NEXT_PUBLIC_API_URL: 'http://localhost:5000/api',
     },
     stdio: 'inherit',
@@ -26,13 +42,31 @@ function startProcess(command, args, cwd, label) {
 }
 
 function startServices() {
-  const appRoot = path.join(__dirname, '..');
-  const backendDir = path.join(appRoot, 'frontend', 'Backened');
-  const frontendDir = path.join(appRoot, 'frontend', 'frontend');
+  const isPackaged = !!app.isPackaged;
+  const appRoot = isPackaged ? process.resourcesPath : path.join(__dirname, '..');
 
-  backendProcess = startProcess(process.execPath, [path.join(backendDir, 'server.js')], backendDir, 'backend');
+  const backendDir = isPackaged
+    ? path.join(appRoot, 'app-backend')
+    : path.join(appRoot, 'frontend', 'Backened');
 
+  const frontendDir = isPackaged
+    ? path.join(appRoot, 'app-frontend')
+    : path.join(appRoot, 'frontend', 'frontend');
+
+  const backendEntry = path.join(backendDir, 'server.js');
   const nextBin = path.join(frontendDir, 'node_modules', 'next', 'dist', 'bin', 'next');
+
+  if (!require('fs').existsSync(backendEntry)) {
+    console.error('Backend entry missing:', backendEntry);
+    return;
+  }
+
+  if (!require('fs').existsSync(nextBin)) {
+    console.error('Frontend next binary missing:', nextBin);
+    return;
+  }
+
+  backendProcess = startProcess(process.execPath, [backendEntry], backendDir, 'backend');
   frontendProcess = startProcess(process.execPath, [nextBin, 'start', '-p', '3000'], frontendDir, 'frontend');
 }
 

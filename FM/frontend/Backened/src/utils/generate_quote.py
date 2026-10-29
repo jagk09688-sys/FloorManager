@@ -163,15 +163,20 @@ def draw_quote(c, job):
 
     totals_x = W - 58 * mm
     totals_w = 43 * mm
-    totals_h = 18 * mm
+    totals_h = 30 * mm
     c.setFillColor(colors.white)
     c.setStrokeColor(LINE)
     c.setLineWidth(0.5)
     c.rect(totals_x, y - totals_h, totals_w, totals_h, fill=1)
 
+    c.setFont("Helvetica", 8.5)
+    c.setFillColor(GREY)
+    c.drawRightString(right - 5 * mm, y - 7 * mm, f"GST ${gst_amt:,.2f}")
+    c.drawRightString(right - 5 * mm, y - 17 * mm, f"SUB TOTAL ${gross:,.2f}")
+
     c.setFont("Helvetica-Bold", 11)
     c.setFillColor(ORANGE)
-    c.drawRightString(right - 5 * mm, y - 12 * mm, f"TOTAL ${total:,.2f}")
+    c.drawRightString(right - 5 * mm, y - 28 * mm, f"TOTAL ${total:,.2f}")
 
     y -= terms_box_h + 12 * mm
 

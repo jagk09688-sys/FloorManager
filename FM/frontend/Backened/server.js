@@ -2,6 +2,10 @@
 
 require('dotenv').config();
 
+const fs = require('fs');
+const path = require('path');
+const { fileURLToPath, pathToFileURL } = require('url');
+const { execFileSync } = require('child_process');
 const express = require('express');
 const morgan  = require('morgan');
 const cors    = require('cors');
@@ -9,6 +13,58 @@ const cors    = require('cors');
 const { logger }                         = require('./src/utils/logger');
 const { NODE_ENV, APP_PORT, CORS_ORIGINS } = require('./src/config/config');
 const errorHandler                       = require('./src/middleware/errorHandler');
+
+function normalizeDatabaseUrl(rawUrl) {
+  if (!rawUrl) {
+    return 'file:' + path.resolve(__dirname, 'data', 'flooring_junction.db');
+  }
+
+  if (rawUrl.startsWith('file:')) {
+    const filePart = rawUrl.replace(/^file:/, '');
+    const absolutePath = path.isAbsolute(filePart)
+      ? filePart
+      : path.resolve(__dirname, filePart);
+
+    return pathToFileURL(absolutePath).href;
+  }
+
+  return rawUrl;
+}
+
+function ensureDatabaseReady() {
+  const databaseUrl = normalizeDatabaseUrl(process.env.DATABASE_URL || 'file:./data/flooring_junction.db');
+
+  if (!databaseUrl || !databaseUrl.startsWith('file:')) {
+    return;
+  }
+
+  const dbPath = fileURLToPath(databaseUrl);
+  const dbDir = path.dirname(dbPath);
+
+  if (dbDir && !fs.existsSync(dbDir)) {
+    fs.mkdirSync(dbDir, { recursive: true });
+  }
+
+  const prismaBinary = process.platform === 'win32'
+    ? path.join(__dirname, 'node_modules', '.bin', 'prisma.cmd')
+    : path.join(__dirname, 'node_modules', '.bin', 'prisma');
+
+  if (!fs.existsSync(prismaBinary)) {
+    return;
+  }
+
+  try {
+    execFileSync(prismaBinary, ['db', 'push', '--accept-data-loss', '--schema', path.join(__dirname, 'prisma', 'schema.prisma')], {
+      cwd: __dirname,
+      stdio: 'inherit',
+      env: process.env,
+    });
+  } catch (error) {
+    console.warn('Database initialization warning:', error.message);
+  }
+}
+
+ensureDatabaseReady();
 
 // ── Route imports ────────────────────────────────────────────
 const routes         = require('./src/routes');

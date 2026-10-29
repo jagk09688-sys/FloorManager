@@ -207,7 +207,7 @@ export default function QuotePage() {
     ${itemSectionHtml}
     <div class="cod">C.O.D.</div>
     <div class="terms">${esc(paymentTerms)}</div>
-    <div class="totals"><table class="t"><tr class="grand"><td class="tl grand" colspan="2" style="text-align:center;">TOTAL $${fmt(total)}</td></tr></table></div>
+    <div class="totals"><table class="t"><tr><td class="tl">SUB TOTAL</td><td class="tv">$${fmt(grossSell)}</td></tr><tr><td class="tl">GST</td><td class="tv">$${fmt(gstAmt)}</td></tr><tr class="grand"><td class="tl grand" style="text-align:right;">TOTAL</td><td class="tv grand" style="text-align:right;">$${fmt(total)}</td></tr></table></div>
     <div class="footer"><div><div class="sig-name">Kamal Hira</div><div>Carpet World Hallam</div></div><div style="text-align:right"><div class="sig-box">Customer Signature</div><div>Date: ___________________</div></div></div>
     </body></html>`);
     w.document.close();
@@ -416,12 +416,21 @@ export default function QuotePage() {
             rows={6}
           />
 
-          {/* ── Final total only ── */}
+          {/* ── Customer summary only: subtotal, GST, total ── */}
           <div className="totals-wrap">
             <table className="totals-table">
               <tbody>
+                <tr>
+                  <td className="tot-label">Sub Total</td>
+                  <td className="tot-val">${fmt(grossSell)}</td>
+                </tr>
+                <tr>
+                  <td className="tot-label">GST</td>
+                  <td className="tot-val">${fmt(gstAmt)}</td>
+                </tr>
                 <tr className="grand-row">
-                  <td className="tot-label grand" colSpan={2} style={{ textAlign: "center" }}>TOTAL ${fmt(total)}</td>
+                  <td className="tot-label grand">TOTAL</td>
+                  <td className="tot-val grand">${fmt(total)}</td>
                 </tr>
               </tbody>
             </table>
